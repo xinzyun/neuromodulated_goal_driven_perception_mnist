@@ -1,4 +1,4 @@
-# Neuromodulated Goal-Driven Perception with Mnist Pairs
+# Neuromodulated Goal-Driven Perception with MNIST Pairs
 In uncertain domains, the goals are often unknown and need to be predicted by the organism or system. In this paper, contrastive excitation backprop (c-EB) was used in a goal-driven perception task with pairs of noisy MNIST digits, where the system had to increase attention to one of the two digits corresponding to a goal (i.e., even, odd, low value, or high value) and decrease attention to the distractor digit or noisy background pixels. Because the valid goal was unknown, an online learning model based on the cholinergic and noradrenergic neuromodulatory systems was used to predict a noisy goal (expected uncertainty) and re-adapt when the goal changed (unexpected uncertainty). This neurobiologically plausible model demonstrates how neuromodulatory systems can predict goals in uncertain domains and how attentional mechanisms can enhance the perception of that goal.
 
 Zou, X., Kolouri, S., Pilly, P. K., & Krichmar, J. L. (2019). Neuromodulated Goal-Driven Perception in Uncertain Domains. *arXiv preprint arXiv:*1903.00068.
