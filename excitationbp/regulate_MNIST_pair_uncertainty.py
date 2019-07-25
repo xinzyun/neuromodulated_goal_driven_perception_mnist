@@ -81,13 +81,17 @@ def MNIST_trend_lag(trend_choice,major_cues,trial_intervals):
                     avg_count += 1
                 done = True
             t += 1
+        if (not done):
+            lag_trend[i]= (t-1)
+            sum_lag += (t-1)
+            avg_count += 1
         ind += trial_intervals[i]
     
     avg_lag = sum_lag/avg_count
     return lag_trend,avg_lag
 
 
-def MNIST_uncertainty_task(model,dataloader,ACH_CORRECT=1.04,ACH_INCORRECT=0.99,NE_INCORRECT=1.02,NE_CORRECT=0.97,trialRange=0, trialInterval = 200,alterValid=False,validity_choices=[0.99,0.85,0.70],previous_intervals=None, previous_cues=None, num_considered=10,num_threshold=8,maxACh = 10,hasLimit=True,hasAChLesion=False,hasNELesion=False, beta=1):
+def MNIST_uncertainty_task(model, dataloader, ACH_CORRECT=1.04, ACH_INCORRECT=0.99, NE_INCORRECT=1.02, NE_CORRECT=0.97, trialRange=0, trialInterval = 200, alterValid=False, validity_choices=[0.99,0.85,0.70], previous_intervals=None, previous_cues=None, num_considered=10, num_threshold=8,maxACh = 10, hasLimit=True, hasAChLesion=False, hasNELesion=False, beta=1, fixed_validity=None):
     #beta = 1;
     
     #Rates for ACh and NE. ACh should grow with each correct choice. NE should 
@@ -154,7 +158,7 @@ def MNIST_uncertainty_task(model,dataloader,ACH_CORRECT=1.04,ACH_INCORRECT=0.99,
     
     trial_intervals = np.zeros(int(numSwitches),dtype=int);
     major_cues = np.zeros(int(numSwitches),dtype=int);
-    acts_prob = np.zeros((int(numSwitches*(trialInterval+trialRange)),numCues),dtype=float);
+    acts_prob = np.zeros((int(numSwitches*(trialInterval+trialRange)), numCues), dtype=float);
     
     for i in range(numSwitches):
         if previous_cues is None:
@@ -167,12 +171,12 @@ def MNIST_uncertainty_task(model,dataloader,ACH_CORRECT=1.04,ACH_INCORRECT=0.99,
         if (type(validity_choices) is int) or (type(validity_choices) is float):
             cue_validity = validity_choices
         else:
-            cue_validity = validity_choices[random.randint(0,len(validity_choices)-1)];
+            if fixed_validity is None:
+                cue_validity = validity_choices[random.randint(0,len(validity_choices) - 1)];
+            else:
+                cue_validity = fixed_validity[i]
         
-        if cue % 2 == 0:
-            alter_cue = cue + 1
-        else:
-            alter_cue = cue - 1
+        alter_cue = cue+1 if cue%2==0 else cue-1
         
         if trialRange == 0:
             temp_trialInterval = trialInterval
@@ -200,10 +204,7 @@ def MNIST_uncertainty_task(model,dataloader,ACH_CORRECT=1.04,ACH_INCORRECT=0.99,
             if not alterValid:
                 temp_cue = cue
             else:
-                if r < cue_validity:
-                    temp_cue = cue
-                else:
-                    temp_cue = alter_cue
+                temp_cue = cue if r < cue_validity else alter_cue
             
             # Choose an action based on softmax function.
             # Choice doesn't have to be an array. But its convenient for
@@ -322,25 +323,43 @@ def MNIST_uncertainty_task(model,dataloader,ACH_CORRECT=1.04,ACH_INCORRECT=0.99,
 
 
 
-def plot_MNIST_uncertainty(correct, choice, ach_level, ach_avg_level, ne_level, correct_lbl, acts_prob, validity_choices=[0.99,0.85,0.70],moreSubplots=False):
-    font = {'family' : 'normal', 'weight' : 'bold', 'size' : 18}
-    plt.rc('font', **font)
-    
+def plot_MNIST_uncertainty(correct, choice, ach_level, ach_avg_level, ne_level, correct_lbl, acts_prob, validity_choices=[0.99,0.85,0.70], moreSubplots=False, alterValid=False, choice_ms=9, cue1_ms=2, cue2_ms=2, cue1_alter_ms=0.5, cue2_alter_ms=0.5):
     ind_cue1, = np.where(correct_lbl == 0)
     ind_cue2, = np.where(correct_lbl == 1)
+    
+    font = {'family' : 'normal', 'weight' : 'bold', 'size' : 16}
+    plt.rc('font', **font)
+    
     if moreSubplots:
         f = plt.figure(figsize=[20,18])
         plt.subplot(5,1,1)
     else:
-        f = plt.figure(figsize=[20,15])#plt.figure(figsize=[20,11])
+        f = plt.figure(figsize=[20,12])
         plt.subplot(3,1,1)
-    plt.title('Correct Trials (validity: '+str(validity_choices)+')')
-    plt.plot(np.arange(len(choice)),choice,'y*',markersize=8)
-    plt.plot(ind_cue1,correct[ind_cue1],'r+',markersize=2)
-    plt.plot(ind_cue2,correct[ind_cue2],'b+',markersize=2)
+    
+    if isinstance(validity_choices, float):
+        plt.title('Major Goal Validity = '+ '{:.2f}'.format(validity_choices))
+    elif isinstance(validity_choices, list):
+        tmp_str = ''
+        for vc in validity_choices:
+            tmp_str += '{:.2f}'.format(vc)+', '
+        tmp_str = tmp_str[:-2]
+        plt.title('Random Major Goal Validity Among '+tmp_str)
+    else:
+        plt.title('Major Goal Validity: '+str(validity_choices))
+    plt.plot(np.arange(len(choice)),choice,'y*',markersize=choice_ms)
+    plt.plot(ind_cue1,correct[ind_cue1],'r+',markersize=cue1_ms)
+    plt.plot(ind_cue2,correct[ind_cue2],'b+',markersize=cue2_ms)
+    if alterValid:
+        alter = np.array([crt+1 if crt%2==0 else crt-1 for crt in correct.tolist()])
+        plt.plot(ind_cue1,alter[ind_cue1],'w.',markersize=cue1_alter_ms)
+        plt.plot(ind_cue2,alter[ind_cue2],'y.',markersize=cue2_alter_ms)
     plt.xlim(0,len(correct))
     plt.yticks(np.arange(4), ('even', 'odd', 'low', 'high'))
-    plt.legend(('choice', 'major goal', 'minor goal'), loc='right')
+    lgnd = plt.legend(('choice', 'major goal', 'minor goal'), loc='right')
+    lgnd.legendHandles[0]._legmarker.set_markersize(15)
+    lgnd.legendHandles[1]._legmarker.set_markersize(13)
+    lgnd.legendHandles[2]._legmarker.set_markersize(13)
     
     if moreSubplots:
         plt.subplot(5,1,2)
@@ -363,16 +382,24 @@ def plot_MNIST_uncertainty(correct, choice, ach_level, ach_avg_level, ne_level, 
         plt.subplot(3,1,3)
     plt.title('Cholinergic Level')
     plt.plot(ach_level)
-    plt.legend(('even', 'odd', 'low', 'high'), loc='right')
     plt.xlim(0,ach_level.shape[0])
+    lgnd = plt.legend(('even', 'odd', 'low', 'high'), loc='right')
+    lgnd.legendHandles[0]._legmarker.set_markersize(15)
+    lgnd.legendHandles[1]._legmarker.set_markersize(15)
+    lgnd.legendHandles[2]._legmarker.set_markersize(15)
+    lgnd.legendHandles[3]._legmarker.set_markersize(15)
     
     if moreSubplots:
         plt.subplot(5,1,5)
         plt.title('Action Probability')
         plt.plot(acts_prob)
-        plt.legend(('even', 'odd', 'low', 'high'), loc='right')
         plt.xlim(0,acts_prob.shape[0])
-    
+        lgnd = plt.legend(('even', 'odd', 'low', 'high'), loc='right')
+        lgnd.legendHandles[0]._legmarker.set_markersize(15)
+        lgnd.legendHandles[1]._legmarker.set_markersize(15)
+        lgnd.legendHandles[2]._legmarker.set_markersize(15)
+        lgnd.legendHandles[3]._legmarker.set_markersize(15)
+        
     plt.show()
        
     return None
